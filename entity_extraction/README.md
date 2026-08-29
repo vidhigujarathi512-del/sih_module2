@@ -4,6 +4,8 @@ An automated statutory entity extraction, document normalization, and visual gro
 # Overview
 Module 2 serves as the canonical extraction layer in the verification pipeline. It ingests raw OCR tokens and document images, applies a hybrid Deterministic Regex Fast-Path and LLM Semantic Normalizer, anchors evidence using bounding boxes, and exports a standardized Universal Document Contract payload to downstream government verification gateways (Module 3) and risk engines (Module 4).
 
+
+```
   Raw OCR Payloads (Module 1)
                 │
                 ▼
@@ -21,8 +23,9 @@ Module 2 serves as the canonical extraction layer in the verification pipeline. 
           │                            │
           ▼                            ▼
   Module 3 (Gov Gateway)      Module 4 (GFR Risk Engine)
+```
 
-  
+
 # Key Features
 Strict Extraction Scope: Extracts only the required evidentiary fields (GSTIN, PAN, Udyam, CA UDIN, Turnovers, MCA21 CIN/DINs, Make in India declarations, EPFO/ESIC) to eliminate document noise.
 
@@ -35,7 +38,7 @@ Visual Grounding & Provenance: Maps extracted fields back to source pages and co
 Explicit Missing State Tracking: Distinguishes missing field reasons using explicit states (NOT_PRESENT, NOT_READABLE, EXTRACTION_FAILED, NOT_APPLICABLE).
 
 # Project Structure
-
+```
 entity_extraction/
 │
 ├── schemas/                      # Pydantic v2 domain schemas
@@ -67,7 +70,7 @@ entity_extraction/
 ├── requirements.txt             # Python dependencies
 └── .gitignore                   # Git exclusion rules
 
-
+```
 # Tech Stack
 
 1. Language: Python 3.11+
