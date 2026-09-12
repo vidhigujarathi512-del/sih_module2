@@ -1,36 +1,51 @@
-# main.py
-from fastapi import FastAPI, HTTPException
-from fastapi.middleware.cors import CORSMiddleware
-from typing import Dict, Any
+import uuid
+from typing import Dict, Any, Optional
+from fastapi import APIRouter, HTTPException, Depends
+from sqlalchemy.orm import Session
+
+from app.database import SessionLocal, Evaluation, BidderFolder, Document
 from tasks import process_entity_extraction_job
 
-app = FastAPI(
-    title="GeM Bid AI Entity Extraction Engine",
-    version="1.0.0",
-    description="Extracts statutory IDs and financial metrics from raw OCR payloads."
-)
+app = APIRouter()
 
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-@app.post("/api/v1/extract-entities")
-async def extract_entities_endpoint(payload: Dict[str, Any]):
+def get_db():
+    db = SessionLocal()
     try:
-        extraction_result = process_entity_extraction_job(payload)
-        return {
-            "status": "SUCCESS",
-            "data": extraction_result["extracted_entities"],
-            "bounding_boxes": extraction_result["bounding_boxes"],
-            "grounding": extraction_result.get("grounding", {})
-        }
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
+        yield db
+    finally:
+        db.close()
 
-@app.get("/health")
-def health_check():
-    return {"status": "HEALTHY", "module": "AI Entity Extraction"}
+# 1. Fetch the latest extracted JSON directly
+@app.get("/api/v1/latest-results", summary="Get Latest Extracted Entities JSON")
+def get_latest_extracted_json(db: Session = Depends(get_db)):
+    record = db.query(Evaluation).order_by(Evaluation.created_at.desc()).first()
+    if not record:
+        raise HTTPException(status_code=404, detail="No evaluation found. Run ingestion first.")
+    
+    # If not yet extracted into JSON, run extraction now
+    if not record.entities_payload:
+        result = process_entity_extraction_job(str(record.id))
+        return result
+        
+    return record.entities_payload
+
+# 2. Trigger Extraction by Evaluation ID
+@app.post("/api/v1/extract-entities", summary="Run Entity Extraction on Evaluation ID")
+def extract_entities_endpoint(payload: Optional[Dict[str, Any]] = None, db: Session = Depends(get_db)):
+    try:
+        # If payload is empty or has no ID, pick the latest evaluation record
+        target_id = None
+        if payload:
+            target_id = payload.get("evaluation_id") or payload.get("id")
+            
+        if not target_id:
+            latest_eval = db.query(Evaluation).order_by(Evaluation.created_at.desc()).first()
+            if latest_eval:
+                target_id = str(latest_eval.id)
+            else:
+                raise HTTPException(status_code=400, detail="No evaluations exist to process.")
+
+        result = process_entity_extraction_job(target_id)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Extraction error: {str(e)}")

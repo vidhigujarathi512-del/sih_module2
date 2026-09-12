@@ -1,14 +1,8 @@
-# Virtual Environment
 .venv/
-venv/
-ENV/
-
-# Python Cache
 __pycache__/
 *.pyc
-
-# Environment Secrets
 .env
-
-# Output artifacts
-outputs/
+uploads/
+temp_workdir/
+extracted/
+normalized/
